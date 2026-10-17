@@ -1,0 +1,43 @@
+# SQL Server 2022 for TeamDesk. Start with:  docker compose up -d
+# Optional Oracle Free (for sql/oracle/teamdesk_oracle.sql):  docker compose --profile oracle up -d oracle
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: teamdesk-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+      - ./sql:/sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  oracle:
+    profiles: ["oracle"]
+    image: gvenzl/oracle-free:23-slim
+    container_name: teamdesk-oracle
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-TeamDesk_Oracle1}
+      APP_USER: teamdesk
+      APP_USER_PASSWORD: ${ORACLE_APP_PASSWORD:-TeamDesk_App1}
+    ports:
+      - "1521:1521"
+    volumes:
+      - ./sql/oracle:/sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
+volumes:
+  mssql-data:
